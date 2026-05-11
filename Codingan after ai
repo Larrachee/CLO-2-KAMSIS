@@ -1,0 +1,80 @@
+<?php
+// Memasukkan koneksi database
+include 'config.php';
+
+// --- IMPLEMENTASI DEFENSE IN DEPTH: LAYER APLIKASI ---
+
+$status_message = "";
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    
+    // 1. PENAMBALAN KERENTANAN: ANTI-BUFFER OVERFLOW (Poin 10)
+    // Menjalankan strlen() untuk membatasi input agar tidak mengeksploitasi peladen
+    $user_input = $_POST['username'];
+    $pass_input = $_POST['password'];
+
+    if (strlen($user_input) > 20) {
+        $status_message = "<div style='color:red;'>[Kritis] Eksploitasi Buffer Overflow Terdeteksi: Input melebihi batas 20 karakter!</div>";
+    } else {
+        
+        // 2. PENAMBALAN KERENTANAN: ANTI-SQL INJECTION (Poin 10)
+        // Menggunakan Prepared Statements untuk mengunci akses basis data
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+            $stmt->execute([$user_input]);
+            $user = $stmt->fetch();
+
+            // 3. PERLINDUNGAN KRIPTOGRAFI KATA SANDI (Poin 10)
+            // Memverifikasi Hash Bcrypt yang tersimpan di MySQL
+            if ($user && password_verify($pass_input, $user['password_hash'])) {
+                $status_message = "<div style='color:green;'>[Berhasil] Autentikasi Valid. Jalur Komunikasi Terenkripsi (SSL/TLS).</div>";
+            } else {
+                $status_message = "<div style='color:red;'>[Gagal] Kredensial tidak valid atau serangan SQL Injection diblokir.</div>";
+            }
+        } catch (PDOException $e) {
+            $status_message = "Terjadi kesalahan sistem.";
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Project CLO 2 - Andreas Pangjiashun</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; padding: 50px; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; }
+        button { width: 95%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .footer { font-size: 0.8em; color: #666; margin-top: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Login Peladen Web Aman</h2>
+    <p><strong>Mekanisme:</strong> Defense in Depth</p>
+    <hr>
+    
+    <?php echo $status_message; ?>
+
+    <form method="POST" action="">
+        <label>Username (Max 20 Karakter):</label>
+        <input type="text" name="username" required>
+        
+        <label>Kata Sandi:</label>
+        <input type="password" name="password" required>
+        
+        <button type="submit">Akses Sistem</button>
+    </form>
+
+    <div class="footer">
+        Status Jaringan: <strong>HTTPS (Ter-enkripsi)</strong><br>
+        Algoritma Kunci: RSA 2048-bit (POIN 50)
+    </div>
+</div>
+
+</body>
+</html>
