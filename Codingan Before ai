@@ -1,0 +1,60 @@
+<?php
+include "config.php";
+
+$pesan = "";
+
+if (isset($_POST['submit_login'])) {
+    $user = $_POST['user'];
+    $pass = $_POST['pass'];
+
+
+    if (strlen($user) > 20) {
+        $pesan = "INPUT TERLALU PANJANG! MAKS 20";
+    } else {
+        
+
+        $query = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+        $query->execute([$user]);
+        $data = $query->fetch();
+
+        if ($data && password_verify($pass, $data['password_hash'])) {
+            $pesan = "LOGIN BERHASIL! Selamat datang " . htmlspecialchars($data['username']);
+        } else {
+            $pesan = "LOGIN GAGAL! Username/Password salah.";
+        }
+    }
+}
+?>
+
+<html>
+<head>
+    <title>Projek CLO 2 Andreas</title>
+</head>
+<body>
+    <h2>Login Sistem - Andreas (NIM: 002)</h2>
+    <p>Status: HTTPS / SSL RSA 2048-bit</p>
+    <hr>
+
+    <b><?php echo $pesan; ?></b>
+
+    <form method="POST" action="">
+        <table>
+            <tr>
+                <td>Username</td>
+                <td>: <input type="text" name="user"></td>
+            </tr>
+            <tr>
+                <td>Password</td>
+                <td>: <input type="password" name="pass"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><input type="submit" name="submit_login" value="MASUK"></td>
+            </tr>
+        </table>
+    </form>
+
+    <br>
+    <p><i>Note: Sistem ini menggunakan Defense in Depth.</i></p>
+</body>
+</html>
