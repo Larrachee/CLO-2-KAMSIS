@@ -8,7 +8,6 @@ $status_message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
-    // 1. PENAMBALAN KERENTANAN: ANTI-BUFFER OVERFLOW (Poin 10)
     // Menjalankan strlen() untuk membatasi input agar tidak mengeksploitasi peladen
     $user_input = $_POST['username'];
     $pass_input = $_POST['password'];
@@ -17,14 +16,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $status_message = "<div style='color:red;'>[Kritis] Eksploitasi Buffer Overflow Terdeteksi: Input melebihi batas 20 karakter!</div>";
     } else {
         
-        // 2. PENAMBALAN KERENTANAN: ANTI-SQL INJECTION (Poin 10)
         // Menggunakan Prepared Statements untuk mengunci akses basis data
         try {
             $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
             $stmt->execute([$user_input]);
             $user = $stmt->fetch();
 
-            // 3. PERLINDUNGAN KRIPTOGRAFI KATA SANDI (Poin 10)
             // Memverifikasi Hash Bcrypt yang tersimpan di MySQL
             if ($user && password_verify($pass_input, $user['password_hash'])) {
                 $status_message = "<div style='color:green;'>[Berhasil] Autentikasi Valid. Jalur Komunikasi Terenkripsi (SSL/TLS).</div>";
