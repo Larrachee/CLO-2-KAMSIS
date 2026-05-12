@@ -1,10 +1,13 @@
 <?php
 include "config.php";
-session_start(); // Penting agar sistem tahu kita sudah login
+session_start();
+
+if (!isset($_SESSION['daftar_komentar'])) {
+    $_SESSION['daftar_komentar'] = [];
+}
 
 $pesan = "Silakan Login";
 
-// Logika Logout (untuk balik ke halaman login)
 if (isset($_GET['logout'])) {
     session_destroy();
     header("Location: index.php");
@@ -12,8 +15,6 @@ if (isset($_GET['logout'])) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
-    // JIKA USER KLIK TOMBOL MASUK
     if (isset($_POST['tombol_login'])) {
         $user = $_POST['user'];
         $pass = $_POST['pass'];
@@ -21,62 +22,62 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (strlen($user) > 20) {
             $pesan = "<b style='color:red;'>SECURITY ERROR: Input Buffer Overflow!</b>";
         } else {
-            // 2. CEK SQL INJECTION (Poin 10)
-            // Pakai prepare agar aman dari ' OR 1=1
+            // LOGIN DENGAN TEKS BIASA (Sesuai permintaanmu)
             $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?");
             $stmt->execute([$user, $pass]);
             $data = $stmt->fetch();
 
             if ($data) {
                 $_SESSION['nama_user'] = $data['username'];
-                $pesan = "<b style='color:green;'>Login Berhasil! Selamat Datang.</b>";
+                $pesan = "<b style='color:green;'>Login Berhasil!</b>";
             } else {
-                $pesan = "<b style='color:orange;'>Login Gagal: User/Pass Salah atau SQLi Diblokir!</b>";
+                $pesan = "<b style='color:orange;'>Gagal: Data tidak cocok atau SQLi diblokir!</b>";
             }
         }
     }
 
-    // JIKA USER KLIK TOMBOL KIRIM KOMENTAR
     if (isset($_POST['kirim_komentar'])) {
-        // Pencegahan XSS (Bonus Poin Keamanan)
         $komen = htmlspecialchars($_POST['isi_komentar']);
-        $pesan = "Komentar Terkirim: " . $komen;
+        if (!empty($komen)) {
+            $_SESSION['daftar_komentar'][] = ['nama' => $_SESSION['nama_user'], 'teks' => $komen, 'waktu' => date("H:i")];
+        }
     }
 }
 ?>
 
+<!DOCTYPE html>
 <html>
-<head>
-    <title>Projek CLO 2 - Andreas</title>
-</head>
-<body style="font-family: Arial; padding: 20px;">
-    <h2>Portal Keamanan Andreas</h2>
-    <div style="border: 1px solid black; padding: 10px; margin-bottom: 20px; background: #f9f9f9;">
-        Status: <?php echo $pesan; ?>
-    </div>
+<body style="font-family: Arial; padding: 20px; background: #f4f4f4;">
+    <div style="max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; border: 1px solid #ddd;">
+        <h2 style="text-align: center;">Portal Aman Andreas</h2>
+        <div style="background: #eee; padding: 10px; text-align: center; margin-bottom: 20px;"><?php echo $pesan; ?></div>
 
-    <?php if (!isset($_SESSION['nama_user'])): ?>
-        <form method="POST">
-            <h3>Halaman Login</h3>
-            Username: <input type="text" name="user"><br><br>
-            Password: <input type="password" name="pass"><br><br>
-            <input type="submit" name="tombol_login" value="Masuk">
-        </form>
-    <?php else: ?>
-        <div style="background: #e2f0d9; padding: 20px; border: 1px solid #70ad47;">
-            <h3>Selamat Datang, <?php echo $_SESSION['nama_user']; ?>!</h3>
-            <p>Anda telah masuk ke area aman HTTPS.</p>
-            
+        <?php if (!isset($_SESSION['nama_user'])): ?>
             <form method="POST">
-                <b>Tulis Komentar Anda:</b><br>
-                <textarea name="isi_komentar" rows="4" cols="50"></textarea><br><br>
-                <input type="submit" name="kirim_komentar" value="Kirim Komentar">
+                Username: <input type="text" name="user" style="width:100%; margin: 5px 0;"><br>
+                Password: <input type="password" name="pass" style="width:100%; margin: 5px 0;"><br><br>
+                <input type="submit" name="tombol_login" value="MASUK" style="width:100%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer;">
             </form>
-            
-            <br>
-            <a href="?logout=1">Logout / Keluar</a>
-        </div>
-    <?php endif; ?>
+        <?php else: ?>
+            <div style="background: #e2f0d9; padding: 15px; border: 1px solid #70ad47;">
+                <h3>Halo, <?php echo $_SESSION['nama_user']; ?>!</h3>
+                <form method="POST">
+                    <textarea name="isi_komentar" style="width:100%;" placeholder="Tulis komentar..."></textarea><br><br>
+                    <input type="submit" name="kirim_komentar" value="Kirim Komentar" style="padding: 5px 15px; background: #28a745; color: white; border: none; cursor: pointer;">
+                </form>
+                <br><a href="?logout=1" style="color: red;">Logout</a>
+            </div>
 
+            <div style="margin-top: 20px;">
+                <b>Komentar:</b><br>
+                <?php foreach (array_reverse($_SESSION['daftar_komentar']) as $k): ?>
+                    <div style="border-bottom: 1px solid #ccc; padding: 5px 0;">
+                        <small><b><?php echo $k['nama']; ?></b> (<?php echo $k['waktu']; ?>):</small><br>
+                        <?php echo $k['teks']; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 </body>
 </html>
