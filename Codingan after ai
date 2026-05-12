@@ -1,77 +1,82 @@
 <?php
-// Memasukkan koneksi database
-include 'config.php';
+include "config.php";
+session_start(); // Penting agar sistem tahu kita sudah login
 
-// --- IMPLEMENTASI DEFENSE IN DEPTH: LAYER APLIKASI ---
+$pesan = "Silakan Login";
 
-$status_message = "";
+// Logika Logout (untuk balik ke halaman login)
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: index.php");
+    exit();
+}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
-    // Menjalankan strlen() untuk membatasi input agar tidak mengeksploitasi peladen
-    $user_input = $_POST['username'];
-    $pass_input = $_POST['password'];
+    // JIKA USER KLIK TOMBOL MASUK
+    if (isset($_POST['tombol_login'])) {
+        $user = $_POST['user'];
+        $pass = $_POST['pass'];
 
-    if (strlen($user_input) > 20) {
-        $status_message = "<div style='color:red;'>[Kritis] Eksploitasi Buffer Overflow Terdeteksi: Input melebihi batas 20 karakter!</div>";
-    } else {
-        
-        // Menggunakan Prepared Statements untuk mengunci akses basis data
-        try {
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
-            $stmt->execute([$user_input]);
-            $user = $stmt->fetch();
+        if (strlen($user) > 20) {
+            $pesan = "<b style='color:red;'>SECURITY ERROR: Input Buffer Overflow!</b>";
+        } else {
+            // 2. CEK SQL INJECTION (Poin 10)
+            // Pakai prepare agar aman dari ' OR 1=1
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? AND password_hash = ?");
+            $stmt->execute([$user, $pass]);
+            $data = $stmt->fetch();
 
-            // Memverifikasi Hash Bcrypt yang tersimpan di MySQL
-            if ($user && password_verify($pass_input, $user['password_hash'])) {
-                $status_message = "<div style='color:green;'>[Berhasil] Autentikasi Valid. Jalur Komunikasi Terenkripsi (SSL/TLS).</div>";
+            if ($data) {
+                $_SESSION['nama_user'] = $data['username'];
+                $pesan = "<b style='color:green;'>Login Berhasil! Selamat Datang.</b>";
             } else {
-                $status_message = "<div style='color:red;'>[Gagal] Kredensial tidak valid atau serangan SQL Injection diblokir.</div>";
+                $pesan = "<b style='color:orange;'>Login Gagal: User/Pass Salah atau SQLi Diblokir!</b>";
             }
-        } catch (PDOException $e) {
-            $status_message = "Terjadi kesalahan sistem.";
         }
+    }
+
+    // JIKA USER KLIK TOMBOL KIRIM KOMENTAR
+    if (isset($_POST['kirim_komentar'])) {
+        // Pencegahan XSS (Bonus Poin Keamanan)
+        $komen = htmlspecialchars($_POST['isi_komentar']);
+        $pesan = "Komentar Terkirim: " . $komen;
     }
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Project CLO 2 - Andreas Pangjiashun</title>
-    <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 50px; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; }
-        button { width: 95%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
-        .footer { font-size: 0.8em; color: #666; margin-top: 20px; text-align: center; }
-    </style>
+    <title>Projek CLO 2 - Andreas</title>
 </head>
-<body>
-
-<div class="container">
-    <h2>Login Peladen Web Aman</h2>
-    <p><strong>Mekanisme:</strong> Defense in Depth</p>
-    <hr>
-    
-    <?php echo $status_message; ?>
-
-    <form method="POST" action="">
-        <label>Username (Max 20 Karakter):</label>
-        <input type="text" name="username" required>
-        
-        <label>Kata Sandi:</label>
-        <input type="password" name="password" required>
-        
-        <button type="submit">Akses Sistem</button>
-    </form>
-
-    <div class="footer">
-        Status Jaringan: <strong>HTTPS (Ter-enkripsi)</strong><br>
-        Algoritma Kunci: RSA 2048-bit (POIN 50)
+<body style="font-family: Arial; padding: 20px;">
+    <h2>Portal Keamanan Andreas</h2>
+    <div style="border: 1px solid black; padding: 10px; margin-bottom: 20px; background: #f9f9f9;">
+        Status: <?php echo $pesan; ?>
     </div>
-</div>
+
+    <?php if (!isset($_SESSION['nama_user'])): ?>
+        <form method="POST">
+            <h3>Halaman Login</h3>
+            Username: <input type="text" name="user"><br><br>
+            Password: <input type="password" name="pass"><br><br>
+            <input type="submit" name="tombol_login" value="Masuk">
+        </form>
+    <?php else: ?>
+        <div style="background: #e2f0d9; padding: 20px; border: 1px solid #70ad47;">
+            <h3>Selamat Datang, <?php echo $_SESSION['nama_user']; ?>!</h3>
+            <p>Anda telah masuk ke area aman HTTPS.</p>
+            
+            <form method="POST">
+                <b>Tulis Komentar Anda:</b><br>
+                <textarea name="isi_komentar" rows="4" cols="50"></textarea><br><br>
+                <input type="submit" name="kirim_komentar" value="Kirim Komentar">
+            </form>
+            
+            <br>
+            <a href="?logout=1">Logout / Keluar</a>
+        </div>
+    <?php endif; ?>
 
 </body>
 </html>
